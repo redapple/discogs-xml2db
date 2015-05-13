@@ -7,7 +7,7 @@
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
@@ -24,99 +24,129 @@ labelCounter = 0
 
 
 class LabelHandler(xml.sax.handler.ContentHandler):
-	inElement = {
-				'id': False,
-				'label': False,
-				'labels': False,
-				'data_quality': False,
-				'contactinfo': False,
-				'image': False,
-				'images': False,
-				'name': False,
-				'profile': False,
-				'parentLabel': False,
-				'sublabels': False,
-				'urls': False,
-				'url': False,
-				}
-	label = model.Label()
-	buffer = ''
-	unknown_tags = []
+    inElement = {
+                'id': False,
+                'label': False,
+                'labels': False,
+                'data_quality': False,
+                'contactinfo': False,
+                'image': False,
+                'images': False,
+                'name': False,
+                'profile': False,
+                'parentLabel': False,
+                'sublabels': False,
+                'urls': False,
+                'url': False,
+                }
+    label = model.Label()
+    buffer = ''
+    unknown_tags = []
 
-	def __init__(self, exporter, stop_after=0, ignore_missing_tags = False):
-		self.exporter = exporter
-		self.stop_after = stop_after
-		self.ignore_missing_tags = ignore_missing_tags
+    def __init__(self, exporter, stop_after=0, ignore_missing_tags = False):
+        self.exporter = exporter
+        self.stop_after = stop_after
+        self.ignore_missing_tags = ignore_missing_tags
 
-	def startElement(self, name, attrs):
-		if not name in self.inElement:
-			if not self.ignore_missing_tags:
-				print "Error: Unknown Label element '%s'." % name
-				sys.exit()
-			elif not name in self.unknown_tags:
-				self.unknown_tags.append(name)
-		self.inElement[name] = True
-		if name == 'label':
-			if not self.inElement['sublabels']:
-				self.label = model.Label()
-		elif name == "image":
-			newImage = model.ImageInfo()
-			newImage.height = attrs["height"]
-			newImage.imageType = attrs["type"]
-			newImage.uri = attrs["uri"]
-			newImage.uri150 = attrs["uri150"]
-			newImage.width = attrs["width"]
-			self.label.images.append(newImage)
-			if len(attrs) != 5:
-				print "ATTR ERROR"
-				print attrs
-				sys.exit()
+    def startElement(self, name, attrs):
+        if not name in self.inElement:
+            if not self.ignore_missing_tags:
+                print "Error: Unknown Label element '%s'." % name
+                sys.exit()
+            elif not name in self.unknown_tags:
+                self.unknown_tags.append(name)
+        self.inElement[name] = True
+        if name == 'label':
+            if not self.inElement['sublabels']:
+                self.label = model.Label()
+        elif name == "image":
+            newImage = model.ImageInfo()
+            newImage.height = attrs["height"]
+            newImage.imageType = attrs["type"]
+            newImage.uri = attrs["uri"]
+            newImage.uri150 = attrs["uri150"]
+            newImage.width = attrs["width"]
+            self.label.images.append(newImage)
+            if len(attrs) != 5:
+                print "ATTR ERROR"
+                print attrs
+                sys.exit()
 
-	def characters(self, data):
-		self.buffer += data
+    def characters(self, data):
+        self.buffer += data
 
-	def endDocument(self):
-		self.exporter.finish()
+    def endDocument(self):
+        self.exporter.finish()
 
-	def endElement(self, name):
-		self.buffer = self.buffer.strip()
-		if name == 'id':
-			self.label.id = int(self.buffer)
-		if name == 'name':
-			if len(self.buffer) != 0:
-				self.label.name = self.buffer
-		elif name == 'contactinfo':
-			if len(self.buffer) != 0:
-				self.label.contactinfo = self.buffer
-		elif name == 'data_quality':
-			if len(self.buffer) != 0:
-				self.label.data_quality = self.buffer
-		elif name == 'profile':
-			if len(self.buffer) != 0:
-				self.label.profile = self.buffer
-		elif name == 'url':
-			if len(self.buffer) != 0:
-				self.label.urls.append(self.buffer)
-		elif name == 'parentLabel':
-			if len(self.buffer) != 0:
-				self.label.parentLabel = self.buffer
-		elif name == "label":
-			if self.inElement['sublabels']:
-				if len(self.buffer) != 0:
-					self.label.sublabels.append(self.buffer)
-			else:
-				self.exporter.storeLabel(self.label)
+    def endElement(self, name):
+        self.buffer = self.buffer.strip()
+        if name == 'id':
+            self.label.id = int(self.buffer)
+        if name == 'name':
+            if len(self.buffer) != 0:
+                self.label.name = self.buffer
+        elif name == 'contactinfo':
+            if len(self.buffer) != 0:
+                self.label.contactinfo = self.buffer
+        elif name == 'data_quality':
+            if len(self.buffer) != 0:
+                self.label.data_quality = self.buffer
+        elif name == 'profile':
+            if len(self.buffer) != 0:
+                self.label.profile = self.buffer
+        elif name == 'url':
+            if len(self.buffer) != 0:
+                self.label.urls.append(self.buffer)
+        elif name == 'parentLabel':
+            if len(self.buffer) != 0:
+                self.label.parentLabel = self.buffer
+        elif name == "label":
+            if self.inElement['sublabels']:
+                if len(self.buffer) != 0:
+                    self.label.sublabels.append(self.buffer)
+            else:
+                self.exporter.storeLabel(self.label)
 
-				global labelCounter
-				labelCounter += 1
-				if self.stop_after > 0 and labelCounter >= self.stop_after:
-					self.endDocument()
-					if self.ignore_missing_tags and len(self.unknown_tags) > 0:
-						print 'Encountered some unknown Label tags: %s' % (self.unknown_tags)
-					raise model.ParserStopError(labelCounter)
+                global labelCounter
+                labelCounter += 1
+                if self.stop_after > 0 and labelCounter >= self.stop_after:
+                    self.endDocument()
+                    if self.ignore_missing_tags and len(self.unknown_tags) > 0:
+                        print 'Encountered some unknown Label tags: %s' % (self.unknown_tags)
+                    raise model.ParserStopError(labelCounter)
 
-		self.inElement[name] = False
-		self.buffer = ''
+        self.inElement[name] = False
+        self.buffer = ''
 
 #labels = {}
 #labelCounter = 0
+
+import lxml.etree
+
+class LxmlLabelHandler(object):
+    def parse(self, f):
+        for cnt, (t, element) in enumerate(lxml.etree.iterparse(f, tag="label"), start=1):
+            #counter.update(map(lambda e: e.tag, element.iterchildren()))
+            if element.xpath('./id'):
+                #print lxml.etree.tostring(element, pretty_print=True)
+                label = model.Label()
+                for att, xp in (('id', './id'),
+                                ('name', './name'),
+                                ('contactinfo', './contactinfo'),
+                                ('data_quality', './data_quality'),
+                                ('profile', './profile')):
+                    t = element.find(xp)
+                    if t is not None:
+                        setattr(label, att, t.text)
+                label.id = int(label.id)
+                for att, xp in (('urls', './urls/url'),
+                                ('sublabels', './sublabels/label'),):
+                    elems = element.find(xp)
+                    if elems is not None:
+                        l = []
+                        for elem in elems:
+                            l.append(elem.text)
+                        setattr(label, att, l)
+                element.clear()
+                if (cnt % 10000) == 0:
+                    print cnt

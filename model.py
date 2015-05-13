@@ -6,12 +6,12 @@ class Artist:
       self.images = []
       #self.urls = {'wikipedia':None, 'myspace':None,'other':[]}
       self.urls = []
-      self.namevariations = [] 
+      self.namevariations = []
       self.aliases = []
       self.profile = ''
       self.members = []#MemberNameList, foreign key name, class Artist
       self.groups = []#GroupNameList, foreign key name, class Artist
-      #self.artistType = 0 #0 = person, 1 = group 
+      #self.artistType = 0 #0 = person, 1 = group
       #self.artist_id = ''
 
 class Release:
@@ -23,15 +23,18 @@ class Release:
      self.released = ''
      self.notes = ''
      self.barcode = None
+     self.master_id = None
      self.genres = []
      self.styles = []
      self.images = []
      self.formats = []
      self.labels = []
-     self.artistJoins = [] 
-     self.tracklist = [] 
+     self.artistJoins = []
+     self.tracklist = []
      self.extraartists = []
-     #self.indentifiers = [] # 
+     #self.indentifiers = [] #
+     self.videos = []
+     self.companies = []
 
 class Master:
    def __init__(self):
@@ -104,13 +107,28 @@ class Track:
     self.duration = ''
     self.position = ''
 
+class Video:
+  def __init__(self):
+    self.title = ''
+    self.duration = ''
+    self.description = ''
+    self.uri = ''
+
+class ReleaseCompany:
+  def __init__(self):
+    self.id = 0
+    self.name = ''
+    self.catno = ''
+    self.resource_url = ''
+    self.entity_type = 0
+
 class ImageInfo:
   def __init__(self):
-    self.height = 0      
+    self.height = 0
     self.imageType = None #enum ImageType.PRIMARY or ImageType.SECONDARY
-    self.uri = ''    
-    self.uri150 = '' 
-    self.width = 0   
+    self.uri = ''
+    self.uri150 = ''
+    self.width = 0
 
 class ImageType:
   PRIMARY = 0
@@ -118,7 +136,7 @@ class ImageType:
 
 
 class ParserStopError(Exception):
-	"""Raised by a parser to signal that it wants to stop parsing."""
-	def __init__(self, count):
-		self.records_parsed = count
+    """Raised by a parser to signal that it wants to stop parsing."""
+    def __init__(self, count):
+        self.records_parsed = count
 
