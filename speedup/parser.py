@@ -192,7 +192,7 @@ class DiscogsReleaseParser(DiscogsDumpEntityParser):
     def element_artists(self, element, extra=False):
         for child in element.iterchildren():
             artist = ReleaseArtist()
-            artist.extra = extra
+            artist.extra = int(extra)
             for e in child.iterchildren():
                 t = e.tag
                 if t in ('id',):
@@ -230,7 +230,7 @@ class DiscogsReleaseParser(DiscogsDumpEntityParser):
             for e in child.iterchildren():
                 t = e.tag
                 if t in ('descriptions'):
-                    setattr(entity, t, list(self.children_text(e)))
+                    setattr(entity, t, "; ".join(self.children_text(e)))
 
             for k, v in child.attrib.items():
                 if k in ('qty',):
