@@ -100,8 +100,9 @@ CREATE TABLE release (
 CREATE TABLE release_artist (
     master_id       integer NOT NULL,
     artist_id       integer NOT NULL,
+    extra           integer NOT NULL,
     anv             text,
-    join            text,
+    join_string     text,
     role            text,
     tracks          text
 );
@@ -123,6 +124,14 @@ CREATE TABLE release_style (
     style           text
 );
 
+CREATE TABLE release_format (
+    release_id      integer NOT NULL,
+    name            text,
+    qty             integer,
+    text_string     text,
+    descriptions    text
+);
+
 CREATE TABLE release_track (
     release_id      integer NOT NULL,
     position        text,
@@ -136,7 +145,7 @@ CREATE TABLE release_track_artist (
     artist_id       integer NOT NULL,
     extra           integer NOT NULL,
     anv             text,
-    join            text,
+    join_string     text,
     role            text,
     tracks          text
 );
@@ -160,7 +169,6 @@ CREATE TABLE release_company (
     release_id      integer NOT NULL,
     company_id      integer NOT NULL,
     company_name    text NOT NULL,
-    -- catno           text,
     entity_type         text,
     entity_type_name    text,
     uri                 text
