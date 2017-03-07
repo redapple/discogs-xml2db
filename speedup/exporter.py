@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
+import bz2
 import csv
 import os
 
-
 from parser import *
+
 
 def _write_entity(writer, entity, fields):
     writer.writerow([getattr(entity, i, '') for i in fields])
@@ -22,21 +23,22 @@ def _write_rows(writer, entity, name):
 
 
 dt = '20170201'
-base = '/home/paul/dl/discogs/{}/'.format(dt)
+inbase = '/home/paul/dl/discogs/{}/'.format(dt)
+outbase = '.'
 export_limit = True
 
 
 def export_labels():
     label_fields = ['id', 'name', 'contactinfo', 'profile', 'parentLabel', 'data_quality']
 
-    with open(os.path.join(base, 'discogs.labels.csv'), 'w') as f1, \
-         open(os.path.join(base, 'discogs.labels_urls.csv'), 'w') as f2:
+    with bz2.open(os.path.join(outbase, 'label.csv.bz2'), 'wt', encoding='utf-8') as f1, \
+         bz2.open(os.path.join(outbase, 'label_url.csv.bz2'), 'wt', encoding='utf-8') as f2:
         labels = csv.writer(f1)
         labels_urls = csv.writer(f2)
 
         parser = DiscogsLabelParser()
         for cnt, label in enumerate(
-                parser.parse(os.path.join(base,'discogs_{}_labels.xml.gz'.format(dt))),
+                parser.parse(os.path.join(inbase, 'discogs_{}_labels.xml.gz'.format(dt))),
                 start=1):
             if not label.name:
                 continue
@@ -52,11 +54,11 @@ def export_labels():
 def export_artists():
     artist_fields = ['id', 'name', 'realname', 'profile', 'data_quality']
 
-    with open(os.path.join(base, 'discogs.artists.csv'), 'w') as f1, \
-         open(os.path.join(base, 'discogs.artists_aliases.csv'), 'w') as f2, \
-         open(os.path.join(base, 'discogs.artists_variations.csv'), 'w') as f3, \
-         open(os.path.join(base, 'discogs.groups_members.csv'), 'w') as f4, \
-         open(os.path.join(base, 'discogs.artists_urls.csv'), 'w') as f5:
+    with bz2.open(os.path.join(outbase, 'artist.csv.bz2'), 'wt', encoding='utf-8') as f1, \
+         bz2.open(os.path.join(outbase, 'artist_alias.csv.bz2'), 'wt', encoding='utf-8') as f2, \
+         bz2.open(os.path.join(outbase, 'artist_namevariation.csv.bz2'), 'wt', encoding='utf-8') as f3, \
+         bz2.open(os.path.join(outbase, 'group_member.csv.bz2'), 'wt', encoding='utf-8') as f4, \
+         bz2.open(os.path.join(outbase, 'artist_url.csv.bz2'), 'wt', encoding='utf-8') as f5:
 
         artists = csv.writer(f1)
         artists_aliases = csv.writer(f2)
@@ -66,7 +68,7 @@ def export_artists():
 
         parser = DiscogsArtistParser()
         for cnt, artist in enumerate(
-                parser.parse(os.path.join(base, 'discogs_{}_artists.xml.gz'.format(dt))),
+                parser.parse(os.path.join(inbase, 'discogs_{}_artists.xml.gz'.format(dt))),
                 start=1):
             if not artist.name:
                 continue
@@ -89,11 +91,11 @@ def export_masters():
     master_artist_fields = ['id', 'anv', 'join', 'role']
     master_video_fields = ['duration', 'title', 'description', 'src']
 
-    with open(os.path.join(base, 'discogs.masters.csv'), 'w') as f1, \
-         open(os.path.join(base, 'discogs.masters_artists.csv'), 'w') as f2, \
-         open(os.path.join(base, 'discogs.masters_videos.csv'), 'w') as f3, \
-         open(os.path.join(base, 'discogs.masters_genres.csv'), 'w') as f4, \
-         open(os.path.join(base, 'discogs.masters_styles.csv'), 'w') as f5:
+    with bz2.open(os.path.join(outbase, 'master.csv.bz2'), 'wt', encoding='utf-8') as f1, \
+         bz2.open(os.path.join(outbase, 'master_artist.csv.bz2'), 'wt', encoding='utf-8') as f2, \
+         bz2.open(os.path.join(outbase, 'master_video.csv.bz2'), 'wt', encoding='utf-8') as f3, \
+         bz2.open(os.path.join(outbase, 'master_genre.csv.bz2'), 'wt', encoding='utf-8') as f4, \
+         bz2.open(os.path.join(outbase, 'master_style.csv.bz2'), 'wt', encoding='utf-8') as f5:
 
         masters = csv.writer(f1)
         masters_artists = csv.writer(f2)
@@ -103,7 +105,7 @@ def export_masters():
 
         parser = DiscogsMasterParser()
         for cnt, master in enumerate(
-                parser.parse(os.path.join(base, 'discogs_{}_masters.xml.gz'.format(dt))),
+                parser.parse(os.path.join(inbase, 'discogs_{}_masters.xml.gz'.format(dt))),
                 start=1):
 
             _write_entity(masters, master, master_fields)
@@ -118,10 +120,82 @@ def export_masters():
         print("Wrote %d masters" % cnt)
 
 
+def export_releases():
+    release_fields = ['id', 'title', 'released', 'country', 'notes', 'data_quality', 'master_id']
+    release_artist_fields = [ 'id', 'extra', 'anv', 'join', 'role', 'tracks']
+    release_label_fields = [ 'name', 'catno']
+    release_video_fields = [ 'duration', 'title', 'description', 'src']
+    release_company_fields = [ 'id', 'name', 'entity_type', 'entity_type_name', 'resource_url']
+    release_identifier_fields = [ 'description', 'type', 'value']
+    release_format_fields = [ 'name', 'qty', 'text', 'descriptions']
+    release_track_fields = ['position', 'title', 'duration']
+
+    with bz2.open(os.path.join(outbase, 'release.csv.bz2'), 'wt') as f1, \
+         bz2.open(os.path.join(outbase, 'release_artist.csv.bz2'), 'wt') as f2, \
+         bz2.open(os.path.join(outbase, 'release_label.csv.bz2'), 'wt') as f3, \
+         bz2.open(os.path.join(outbase, 'release_genre.csv.bz2'), 'wt') as f4, \
+         bz2.open(os.path.join(outbase, 'release_style.csv.bz2'), 'wt') as f5, \
+         bz2.open(os.path.join(outbase, 'release_video.csv.bz2'), 'wt') as f6, \
+         bz2.open(os.path.join(outbase, 'release_company.csv.bz2'), 'wt') as f7, \
+         bz2.open(os.path.join(outbase, 'release_identifier.csv.bz2'), 'wt') as f8, \
+         bz2.open(os.path.join(outbase, 'release_format.csv.bz2'), 'wt') as f9, \
+         bz2.open(os.path.join(outbase, 'release_track.csv.bz2'), 'wt') as f10, \
+         bz2.open(os.path.join(outbase, 'release_track_artist.csv.bz2'), 'wt') as f11:
+
+        releases = csv.writer(f1)
+        releases_artists = csv.writer(f2)
+        releases_labels = csv.writer(f3)
+        releases_genres = csv.writer(f4)
+        releases_styles = csv.writer(f5)
+        releases_videos = csv.writer(f6)
+        releases_companies = csv.writer(f7)
+        releases_identifiers = csv.writer(f8)
+        releases_formats = csv.writer(f9)
+        releases_tracks = csv.writer(f10)
+        releases_tracks_artists = csv.writer(f11)
+
+        parser = DiscogsReleaseParser()
+        for cnt, release in enumerate(
+                parser.parse(os.path.join(inbase, 'discogs_{}_releases.xml.gz'.format(dt))),
+                start=1):
+
+            releases.writerow([getattr(release, i, '') for i in release_fields])
+            _write_entity(releases, release, release_fields)
+
+            _write_fields_rows(releases_artists, release, 'artists', release_artist_fields)
+            _write_fields_rows(releases_artists, release, 'extraartists', release_artist_fields)
+
+            _write_fields_rows(releases_labels, release, 'labels', release_label_fields)
+            _write_fields_rows(releases_videos, release, 'videos', release_video_fields)
+            _write_fields_rows(releases_formats, release, 'formats', release_format_fields)
+
+            _write_fields_rows(releases_companies, release, 'companies', release_company_fields)
+            _write_fields_rows(releases_identifiers, release, 'identifiers', release_identifier_fields)
+
+            _write_rows(releases_genres, release, 'genres')
+            _write_rows(releases_styles, release, 'styles')
+
+            _write_fields_rows(releases_tracks, release, 'tracklist', release_track_fields)
+
+            entity = release
+            writer = releases_tracks_artists
+            writer.writerows(
+                [entity.id, track.position]
+                + [getattr(element, i, '') for i in release_artist_fields]
+                for track in getattr(entity, 'tracklist', [])
+                for element in getattr(track, 'artists', []) + getattr(track, 'extraartists', [])
+            )
+
+            if export_limit and cnt > 100:
+                break
+
+        print("Wrote %d releases" % cnt)
+
 def main(args):
     export_labels()
     export_artists()
     export_masters()
+    export_releases()
 
 
 if __name__ == '__main__':
