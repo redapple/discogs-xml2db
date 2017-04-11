@@ -22,13 +22,15 @@ def _write_rows(writer, entity, name):
         )
 
 
-dt = '20170201'
+dt = '20170301'
 inbase = '/home/paul/dl/discogs/{}/'.format(dt)
 outbase = '.'
-export_limit = True
+
+export_limit = None
+#export_limit = 100000
 
 
-def export_labels():
+def _export_labels(infile, outbase, export_limit=None):
     label_fields = ['id', 'name', 'contactinfo', 'profile', 'parentLabel', 'data_quality']
 
     with bz2.open(os.path.join(outbase, 'label.csv.bz2'), 'wt', encoding='utf-8') as f1, \
@@ -37,21 +39,19 @@ def export_labels():
         labels_urls = csv.writer(f2)
 
         parser = DiscogsLabelParser()
-        for cnt, label in enumerate(
-                parser.parse(os.path.join(inbase, 'discogs_{}_labels.xml.gz'.format(dt))),
-                start=1):
+        for cnt, label in enumerate(parser.parse(infile), start=1):
             if not label.name:
                 continue
             _write_entity(labels, label, label_fields)
             _write_rows(labels_urls, label, 'urls')
 
-            if export_limit and cnt > 100:
+            if export_limit is not None and cnt > export_limit:
                 break
 
         print("Wrote %d labels" % cnt)
 
 
-def export_artists():
+def _export_artists(infile, outbase, export_limit=None):
     artist_fields = ['id', 'name', 'realname', 'profile', 'data_quality']
 
     with bz2.open(os.path.join(outbase, 'artist.csv.bz2'), 'wt', encoding='utf-8') as f1, \
@@ -67,11 +67,9 @@ def export_artists():
         artists_urls = csv.writer(f5)
 
         parser = DiscogsArtistParser()
-        for cnt, artist in enumerate(
-                parser.parse(os.path.join(inbase, 'discogs_{}_artists.xml.gz'.format(dt))),
-                start=1):
+        for cnt, artist in enumerate(parser.parse(infile), start=1):
             if not artist.name:
-                continue
+                artist.name = '[artist #%d]' % artist.id
 
             _write_entity(artists, artist, artist_fields)
             _write_rows(artists_aliases, artist, 'aliases')
@@ -80,13 +78,14 @@ def export_artists():
 
             groups_members.writerows([[artist.id, member_id, member_name]
                                      for member_id, member_name in getattr(artist, 'members', [])])
-            if export_limit and cnt > 100:
+
+            if export_limit is not None and cnt > export_limit:
                 break
 
         print("Wrote %d artists" % cnt)
 
 
-def export_masters():
+def _export_masters(infile, outbase, export_limit=None):
     master_fields = ['id', 'title', 'year', 'main_release', 'data_quality']
     master_artist_fields = ['id', 'anv', 'join', 'role']
     master_video_fields = ['duration', 'title', 'description', 'src']
@@ -104,9 +103,7 @@ def export_masters():
         masters_styles = csv.writer(f5)
 
         parser = DiscogsMasterParser()
-        for cnt, master in enumerate(
-                parser.parse(os.path.join(inbase, 'discogs_{}_masters.xml.gz'.format(dt))),
-                start=1):
+        for cnt, master in enumerate(parser.parse(infile), start=1):
 
             _write_entity(masters, master, master_fields)
             _write_fields_rows(masters_artists, master, 'artists', master_artist_fields)
@@ -114,13 +111,13 @@ def export_masters():
             _write_rows(masters_genres, master, 'genres')
             _write_rows(masters_styles, master, 'styles')
 
-            if export_limit and cnt > 100:
+            if export_limit is not None and cnt > export_limit:
                 break
 
         print("Wrote %d masters" % cnt)
 
 
-def export_releases():
+def _export_releases(infile, outbase, export_limit=None):
     release_fields = ['id', 'title', 'released', 'country', 'notes', 'data_quality', 'master_id']
     release_artist_fields = [ 'id', 'extra', 'anv', 'join', 'role', 'tracks']
     release_label_fields = [ 'name', 'catno']
@@ -128,7 +125,7 @@ def export_releases():
     release_company_fields = [ 'id', 'name', 'entity_type', 'entity_type_name', 'resource_url']
     release_identifier_fields = [ 'description', 'type', 'value']
     release_format_fields = [ 'name', 'qty', 'text', 'descriptions']
-    release_track_fields = ['position', 'title', 'duration']
+    release_track_fields = ['sequence', 'position', 'parent', 'title', 'duration']
 
     with bz2.open(os.path.join(outbase, 'release.csv.bz2'), 'wt') as f1, \
          bz2.open(os.path.join(outbase, 'release_artist.csv.bz2'), 'wt') as f2, \
@@ -155,11 +152,8 @@ def export_releases():
         releases_tracks_artists = csv.writer(f11)
 
         parser = DiscogsReleaseParser()
-        for cnt, release in enumerate(
-                parser.parse(os.path.join(inbase, 'discogs_{}_releases.xml.gz'.format(dt))),
-                start=1):
+        for cnt, release in enumerate(parser.parse(infile), start=1):
 
-            releases.writerow([getattr(release, i, '') for i in release_fields])
             _write_entity(releases, release, release_fields)
 
             _write_fields_rows(releases_artists, release, 'artists', release_artist_fields)
@@ -180,22 +174,46 @@ def export_releases():
             entity = release
             writer = releases_tracks_artists
             writer.writerows(
-                [entity.id, track.position]
+                [entity.id, track.sequence]
                 + [getattr(element, i, '') for i in release_artist_fields]
                 for track in getattr(entity, 'tracklist', [])
                 for element in getattr(track, 'artists', []) + getattr(track, 'extraartists', [])
             )
 
-            if export_limit and cnt > 100:
+            if export_limit is not None and cnt > export_limit:
                 break
 
         print("Wrote %d releases" % cnt)
 
+def export_artists(export_limit=None):
+    _export_artists(
+        gzip.GzipFile(os.path.join(inbase, 'discogs_{}_artists.xml.gz'.format(dt))),
+        outbase,
+        export_limit=export_limit)
+
+def export_labels(export_limit=None):
+    _export_labels(
+        gzip.GzipFile(os.path.join(inbase, 'discogs_{}_labels.xml.gz'.format(dt))),
+        outbase,
+        export_limit=export_limit)
+
+def export_masters(export_limit=None):
+    _export_masters(
+        gzip.GzipFile(os.path.join(inbase, 'discogs_{}_masters.xml.gz'.format(dt))),
+        outbase,
+        export_limit=export_limit)
+
+def export_releases(export_limit=None):
+    _export_releases(
+        gzip.GzipFile(os.path.join(inbase, 'discogs_{}_releases.xml.gz'.format(dt))),
+        outbase,
+        export_limit=export_limit)
+
 def main(args):
-    export_labels()
-    export_artists()
-    export_masters()
-    export_releases()
+    export_labels(export_limit)
+    export_artists(export_limit)
+    export_masters(export_limit)
+    export_releases(export_limit)
 
 
 if __name__ == '__main__':
