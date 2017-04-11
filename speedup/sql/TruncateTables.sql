@@ -12,6 +12,7 @@ TRUNCATE TABLE master_genre;
 TRUNCATE TABLE master_style;
 TRUNCATE TABLE release;
 TRUNCATE TABLE release_artist;
+TRUNCATE TABLE release_format;
 TRUNCATE TABLE release_label;
 TRUNCATE TABLE release_genre;
 TRUNCATE TABLE release_style;

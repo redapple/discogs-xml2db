@@ -98,7 +98,7 @@ CREATE TABLE release (
 );
 
 CREATE TABLE release_artist (
-    master_id       integer NOT NULL,
+    release_id      integer NOT NULL,
     artist_id       integer NOT NULL,
     extra           integer NOT NULL,
     anv             text,
@@ -127,23 +127,25 @@ CREATE TABLE release_style (
 CREATE TABLE release_format (
     release_id      integer NOT NULL,
     name            text,
-    qty             integer,
+    qty             NUMERIC, -- There's 1 example e.g. 8262262,File,1000000000000000000000000000000000000000000000000000000000000001,32 kbps,MP3; Album; Mono
     text_string     text,
     descriptions    text
 );
 
 CREATE TABLE release_track (
     release_id      integer NOT NULL,
+    sequence        integer NOT NULL,
     position        text,
+    parent          integer,
     title           text,
     duration        text
 );
 
 CREATE TABLE release_track_artist (
     release_id      integer NOT NULL,
-    position        text,
+    track_sequence  integer NOT NULL,
     artist_id       integer NOT NULL,
-    extra           integer NOT NULL,
+    extra           boolean NOT NULL,
     anv             text,
     join_string     text,
     role            text,
