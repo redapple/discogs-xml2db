@@ -24,17 +24,16 @@ class DiscogsDumpEntityParser(object):
         if i is not None:
             return int(i.text)
 
-    def parse(self, filename):
-        with gzip.GzipFile(filename) as f:
-            for event, element in lxml_etree.iterparse(f, tag=self.entity_tag):
-                i = self.entity_id(element)
-                if i is not None:
-                    yield self.build_entity(i, element)
-                    element.clear()
-                    # Also eliminate now-empty references from the root node to elem
-                    for ancestor in element.xpath('ancestor-or-self::*'):
-                        while ancestor.getprevious() is not None:
-                            del ancestor.getparent()[0]
+    def parse(self, fp):
+        for event, element in lxml_etree.iterparse(fp, tag=self.entity_tag):
+            i = self.entity_id(element)
+            if i is not None:
+                yield self.build_entity(i, element)
+                element.clear()
+                # Also eliminate now-empty references from the root node to elem
+                for ancestor in element.xpath('ancestor-or-self::*'):
+                    while ancestor.getprevious() is not None:
+                        del ancestor.getparent()[0]
 
     def build_entity(self, entity_id, element):
         raise NotImplementedError
@@ -239,9 +238,14 @@ class DiscogsReleaseParser(DiscogsDumpEntityParser):
                     setattr(entity, k, v)
             yield entity
 
-    def element_tracklist(self, element):
+    def element_tracklist(self, element, parent=None):
         for track in element.iterchildren():
+            self.track_sequence += 1
             entity = ReleaseTrack()
+            subtracks = []
+            setattr(entity, 'sequence', self.track_sequence)
+            if parent is not None:
+                setattr(entity, 'parent', parent)
             for e in track.iterchildren():
                 t = e.tag
                 if t in ('position', 'title', 'duration'):
@@ -250,7 +254,14 @@ class DiscogsReleaseParser(DiscogsDumpEntityParser):
                     setattr(entity, t,
                             list(self.element_artists(e,
                                                       extra=(t=='extraartists'))))
+                elif t in ('sub_tracks'):
+                    subtracks = list(self.element_tracklist(e,
+                        parent=int(self.track_sequence)))
             yield entity
+            if subtracks:
+                for t in subtracks:
+                    yield t
+                subtracks = []
 
     def element_identifiers(self, element):
         for child in element.iterchildren():
@@ -304,6 +315,7 @@ class DiscogsReleaseParser(DiscogsDumpEntityParser):
                 setattr(release, t, list(self.element_formats(e)))
 
             elif t in ('tracklist'):
+                self.track_sequence = 0
                 setattr(release, t, list(self.element_tracklist(e)))
 
             elif t in ('identifiers'):
