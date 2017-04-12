@@ -1,7 +1,21 @@
 # -*- coding: utf-8 -*-
+"""Usage: exporter.py [--bz2] [--limit=<lines>] [--debug] INPUT [OUTPUT] [--export=<entity>]...
+
+Options:
+  --bz2                 Compress output files using bz2 compression library.
+  --limit=<lines>       Limit export to some number of entities
+  --export=<entity>     Limit export to some entities (repeatable)
+  --debug               Turn on debugging prints
+
+"""
+
+
 import bz2
 import csv
+import glob
 import os
+
+from docopt import docopt
 
 from parser import *
 
@@ -22,34 +36,132 @@ def _write_rows(writer, entity, name):
         )
 
 
-dt = '20170301'
-inbase = '/home/paul/dl/discogs/{}/'.format(dt)
-outbase = '.'
+_parsers = {
+    'artist': DiscogsArtistParser,
+    'label': DiscogsLabelParser,
+}
 
-export_limit = None
-#export_limit = 100000
+class EntityCsvExporter(object):
+    """Read a Discogs dump XML file and exports SQL table records as CSV.
+    """
+    def __init__(self, entity, idir, odir, limit=None, bz2=True, dry_run=False, debug=False):
+        self.entity = entity
+        self.parser = _parsers[entity]()
 
+        lookup = 'discogs_[0-9]*_{}s.xml*'.format(entity)
+        self.pattern = os.path.join(idir, lookup)
 
-def _export_labels(infile, outbase, export_limit=None):
-    label_fields = ['id', 'name', 'contactinfo', 'profile', 'parentLabel', 'data_quality']
+        # where and how the exporter will write to
+        self.odir = odir
+        self.limit = limit
+        self.bz2 = bz2
+        self.dry_run = dry_run
 
-    with bz2.open(os.path.join(outbase, 'label.csv.bz2'), 'wt', encoding='utf-8') as f1, \
-         bz2.open(os.path.join(outbase, 'label_url.csv.bz2'), 'wt', encoding='utf-8') as f2:
-        labels = csv.writer(f1)
-        labels_urls = csv.writer(f2)
+        self.debug = debug
 
-        parser = DiscogsLabelParser()
-        for cnt, label in enumerate(parser.parse(infile), start=1):
-            if not label.name:
-                continue
-            _write_entity(labels, label, label_fields)
-            _write_rows(labels_urls, label, 'urls')
+    def openfile(self):
+        for fpath in glob.glob(self.pattern):
+            if fpath.endswith('.gz'):
+                return gzip.GzipFile(fpath)
+            elif fpath.endswith('.xml'):
+                return open(fpath)
+            else:
+                raise RuntimeError('unknown file type: {}'.format(fpath))
 
-            if export_limit is not None and cnt > export_limit:
+    def export(self):
+        return self.export_from_file(self.openfile())
+
+    @staticmethod
+    def validate(entity):
+        return True
+
+    def build_ops(self):
+        openf = bz2.open if self.bz2 else open
+        outf = '{}.bz2' if self.bz2 else '{}'
+
+        operations = []
+        for out, fn, args in self.actions:
+            outfp = openf(os.path.join(self.odir, outf.format(out)), 'wt', encoding='utf-8')
+            writer = csv.writer(outfp)
+            operations.append(
+                (writer, fn, args, outfp)
+            )
+        return operations
+
+    def run_ops(self, entity, operations):
+        if self.dry_run:
+            return
+        for writer, f, args, _ in operations:
+            if args is not None:
+                f(writer, entity, *args)
+            else:
+                f(writer, entity)
+
+    def clean_ops(self, operations):
+        if self.dry_run:
+            return
+        for _, _, _, fp in operations:
+            fp.close()
+
+    def export_from_file(self, fp):
+        operations = self.build_ops()
+        for cnt, entity in enumerate(filter(self.validate, self.parser.parse(fp)), start=1):
+            self.run_ops(entity, operations)
+            if self.limit is not None and cnt > self.limit:
                 break
+        self.clean_ops(operations)
+        return cnt
 
-        print("Wrote %d labels" % cnt)
 
+class LabelExporter(EntityCsvExporter):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__('label', *args, **kwargs)
+
+        label_fields = ['id', 'name', 'contactinfo', 'profile', 'parentLabel', 'data_quality']
+        self.actions = (
+            ('label.csv',       _write_entity,  [label_fields]),
+            ('label_url.csv',   _write_rows,    ['urls']),
+        )
+
+    def validate(self, label):
+        if not label.name:
+            return False
+        return True
+
+
+class ArtistExporter(EntityCsvExporter):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__('artist', *args, **kwargs)
+
+        artist_fields = ['id', 'name', 'realname', 'profile', 'data_quality']
+        self.actions = (
+            ('artist.csv',                  _write_entity,  [artist_fields]),
+            ('artist_alias.csv',            _write_rows,    ['aliases']),
+            ('artist_namevariation.csv',    _write_rows,    ['namevariations']),
+            ('artist_url.csv',              _write_rows,    ['urls']),
+            ('group_member.csv',            self.write_group_members,  None),
+
+        )
+
+    @staticmethod
+    def write_group_members(writer, artist):
+        writer.writerows([
+            [artist.id, member_id, member_name]
+            for member_id, member_name in getattr(artist, 'members', [])
+        ])
+
+    def validate(self, artist):
+        if not artist.name:
+            return False
+        return True
+
+
+_exporters = {
+    'label': LabelExporter,
+    'artist': ArtistExporter,
+}
 
 def _export_artists(infile, outbase, export_limit=None):
     artist_fields = ['id', 'name', 'realname', 'profile', 'data_quality']
@@ -76,8 +188,7 @@ def _export_artists(infile, outbase, export_limit=None):
             _write_rows(artists_variations, artist, 'namevariations')
             _write_rows(artists_urls, artist, 'urls')
 
-            groups_members.writerows([[artist.id, member_id, member_name]
-                                     for member_id, member_name in getattr(artist, 'members', [])])
+
 
             if export_limit is not None and cnt > export_limit:
                 break
@@ -210,10 +321,22 @@ def export_releases(export_limit=None):
         export_limit=export_limit)
 
 def main(args):
-    export_labels(export_limit)
-    export_artists(export_limit)
-    export_masters(export_limit)
-    export_releases(export_limit)
+
+    arguments = docopt(__doc__, version='Discogs-to-SQL exporter')
+
+    inbase = arguments['INPUT']
+    outbase = arguments['OUTPUT'] or '.'
+    limit = int(arguments['--limit']) if arguments['--limit'] else None
+    bz2_on = arguments['--bz2']
+    debug = arguments['--debug']
+
+    for entity in arguments['--export']:
+        exporter = _exporters[entity](inbase, outbase, limit=limit, bz2=bz2_on, debug=debug)
+        exporter.export()
+    #export_labels(inbase, outbase, export_limit)
+    #export_artists(inbase, outbase, export_limit)
+    #export_masters(inbase, outbase, export_limit)
+    #export_releases(inbase, outbase, export_limit)
 
 
 if __name__ == '__main__':
