@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
-import gzip
-import collections
 from itertools import zip_longest
 
-import lxml.etree as lxml_etree
+import lxml.etree as etree
 
 from entities import *
 
@@ -25,7 +23,9 @@ class DiscogsDumpEntityParser(object):
             return int(i.text)
 
     def parse(self, fp):
-        for event, element in lxml_etree.iterparse(fp, tag=self.entity_tag):
+        # borrowed from http://stackoverflow.com/a/12161078
+        # and https://www.ibm.com/developerworks/xml/library/x-hiperfparse/
+        for event, element in etree.iterparse(fp, tag=self.entity_tag):
             i = self.entity_id(element)
             if i is not None:
                 yield self.build_entity(i, element)

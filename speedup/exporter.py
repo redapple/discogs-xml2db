@@ -8,11 +8,10 @@ Options:
   --debug               Turn on debugging prints
 
 """
-
-
 import bz2
 import csv
 import glob
+import gzip
 import os
 
 from docopt import docopt
