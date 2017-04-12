@@ -39,6 +39,7 @@ def _write_rows(writer, entity, name):
 _parsers = {
     'artist': DiscogsArtistParser,
     'label': DiscogsLabelParser,
+    'master': DiscogsMasterParser,
 }
 
 class EntityCsvExporter(object):
@@ -118,9 +119,9 @@ class LabelExporter(EntityCsvExporter):
     def __init__(self, *args, **kwargs):
         super().__init__('label', *args, **kwargs)
 
-        label_fields = ['id', 'name', 'contactinfo', 'profile', 'parentLabel', 'data_quality']
+        fields = ['id', 'name', 'contactinfo', 'profile', 'parentLabel', 'data_quality']
         self.actions = (
-            ('label.csv',       _write_entity,  [label_fields]),
+            ('label.csv',       _write_entity,  [fields]),
             ('label_url.csv',   _write_rows,    ['urls']),
         )
 
@@ -135,9 +136,9 @@ class ArtistExporter(EntityCsvExporter):
     def __init__(self, *args, **kwargs):
         super().__init__('artist', *args, **kwargs)
 
-        artist_fields = ['id', 'name', 'realname', 'profile', 'data_quality']
+        fields = ['id', 'name', 'realname', 'profile', 'data_quality']
         self.actions = (
-            ('artist.csv',                  _write_entity,  [artist_fields]),
+            ('artist.csv',                  _write_entity,  [fields]),
             ('artist_alias.csv',            _write_rows,    ['aliases']),
             ('artist_namevariation.csv',    _write_rows,    ['namevariations']),
             ('artist_url.csv',              _write_rows,    ['urls']),
@@ -154,78 +155,33 @@ class ArtistExporter(EntityCsvExporter):
 
     def validate(self, artist):
         if not artist.name:
-            return False
+            artist.name = '[artist #%d]' % artist.id
         return True
 
+
+class MasterExporter(EntityCsvExporter):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__('master', *args, **kwargs)
+
+        fields = ['id', 'title', 'year', 'main_release', 'data_quality']
+        artist_fields = ['id', 'anv', 'join', 'role']
+        video_fields = ['duration', 'title', 'description', 'src']
+        self.actions = (
+            ('master.csv',          _write_entity,      [fields]),
+            ('master_artist.csv',   _write_fields_rows, ['artists', artist_fields]),
+            ('master_video.csv',    _write_fields_rows, ['videos',  video_fields]),
+            ('master_genre.csv',    _write_rows,        ['genres']),
+            ('master_style.csv',    _write_rows,        ['styles']),
+
+        )
 
 _exporters = {
     'label': LabelExporter,
     'artist': ArtistExporter,
+    'master': MasterExporter,
 }
 
-def _export_artists(infile, outbase, export_limit=None):
-    artist_fields = ['id', 'name', 'realname', 'profile', 'data_quality']
-
-    with bz2.open(os.path.join(outbase, 'artist.csv.bz2'), 'wt', encoding='utf-8') as f1, \
-         bz2.open(os.path.join(outbase, 'artist_alias.csv.bz2'), 'wt', encoding='utf-8') as f2, \
-         bz2.open(os.path.join(outbase, 'artist_namevariation.csv.bz2'), 'wt', encoding='utf-8') as f3, \
-         bz2.open(os.path.join(outbase, 'group_member.csv.bz2'), 'wt', encoding='utf-8') as f4, \
-         bz2.open(os.path.join(outbase, 'artist_url.csv.bz2'), 'wt', encoding='utf-8') as f5:
-
-        artists = csv.writer(f1)
-        artists_aliases = csv.writer(f2)
-        artists_variations = csv.writer(f3)
-        groups_members = csv.writer(f4)
-        artists_urls = csv.writer(f5)
-
-        parser = DiscogsArtistParser()
-        for cnt, artist in enumerate(parser.parse(infile), start=1):
-            if not artist.name:
-                artist.name = '[artist #%d]' % artist.id
-
-            _write_entity(artists, artist, artist_fields)
-            _write_rows(artists_aliases, artist, 'aliases')
-            _write_rows(artists_variations, artist, 'namevariations')
-            _write_rows(artists_urls, artist, 'urls')
-
-
-
-            if export_limit is not None and cnt > export_limit:
-                break
-
-        print("Wrote %d artists" % cnt)
-
-
-def _export_masters(infile, outbase, export_limit=None):
-    master_fields = ['id', 'title', 'year', 'main_release', 'data_quality']
-    master_artist_fields = ['id', 'anv', 'join', 'role']
-    master_video_fields = ['duration', 'title', 'description', 'src']
-
-    with bz2.open(os.path.join(outbase, 'master.csv.bz2'), 'wt', encoding='utf-8') as f1, \
-         bz2.open(os.path.join(outbase, 'master_artist.csv.bz2'), 'wt', encoding='utf-8') as f2, \
-         bz2.open(os.path.join(outbase, 'master_video.csv.bz2'), 'wt', encoding='utf-8') as f3, \
-         bz2.open(os.path.join(outbase, 'master_genre.csv.bz2'), 'wt', encoding='utf-8') as f4, \
-         bz2.open(os.path.join(outbase, 'master_style.csv.bz2'), 'wt', encoding='utf-8') as f5:
-
-        masters = csv.writer(f1)
-        masters_artists = csv.writer(f2)
-        masters_videos = csv.writer(f3)
-        masters_genres = csv.writer(f4)
-        masters_styles = csv.writer(f5)
-
-        parser = DiscogsMasterParser()
-        for cnt, master in enumerate(parser.parse(infile), start=1):
-
-            _write_entity(masters, master, master_fields)
-            _write_fields_rows(masters_artists, master, 'artists', master_artist_fields)
-            _write_fields_rows(masters_videos, master, 'videos', master_video_fields)
-            _write_rows(masters_genres, master, 'genres')
-            _write_rows(masters_styles, master, 'styles')
-
-            if export_limit is not None and cnt > export_limit:
-                break
-
-        print("Wrote %d masters" % cnt)
 
 
 def _export_releases(infile, outbase, export_limit=None):
