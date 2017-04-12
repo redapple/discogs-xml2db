@@ -40,6 +40,7 @@ _parsers = {
     'artist': DiscogsArtistParser,
     'label': DiscogsLabelParser,
     'master': DiscogsMasterParser,
+    'release': DiscogsReleaseParser,
 }
 
 class EntityCsvExporter(object):
@@ -119,9 +120,9 @@ class LabelExporter(EntityCsvExporter):
     def __init__(self, *args, **kwargs):
         super().__init__('label', *args, **kwargs)
 
-        fields = ['id', 'name', 'contactinfo', 'profile', 'parentLabel', 'data_quality']
+        main_fields = ['id', 'name', 'contactinfo', 'profile', 'parentLabel', 'data_quality']
         self.actions = (
-            ('label.csv',       _write_entity,  [fields]),
+            ('label.csv',       _write_entity,  [main_fields]),
             ('label_url.csv',   _write_rows,    ['urls']),
         )
 
@@ -136,14 +137,13 @@ class ArtistExporter(EntityCsvExporter):
     def __init__(self, *args, **kwargs):
         super().__init__('artist', *args, **kwargs)
 
-        fields = ['id', 'name', 'realname', 'profile', 'data_quality']
+        main_fields = ['id', 'name', 'realname', 'profile', 'data_quality']
         self.actions = (
-            ('artist.csv',                  _write_entity,  [fields]),
+            ('artist.csv',                  _write_entity,  [main_fields]),
             ('artist_alias.csv',            _write_rows,    ['aliases']),
             ('artist_namevariation.csv',    _write_rows,    ['namevariations']),
             ('artist_url.csv',              _write_rows,    ['urls']),
             ('group_member.csv',            self.write_group_members,  None),
-
         )
 
     @staticmethod
@@ -164,11 +164,11 @@ class MasterExporter(EntityCsvExporter):
     def __init__(self, *args, **kwargs):
         super().__init__('master', *args, **kwargs)
 
-        fields = ['id', 'title', 'year', 'main_release', 'data_quality']
+        main_fields = ['id', 'title', 'year', 'main_release', 'data_quality']
         artist_fields = ['id', 'anv', 'join', 'role']
         video_fields = ['duration', 'title', 'description', 'src']
         self.actions = (
-            ('master.csv',          _write_entity,      [fields]),
+            ('master.csv',          _write_entity,      [main_fields]),
             ('master_artist.csv',   _write_fields_rows, ['artists', artist_fields]),
             ('master_video.csv',    _write_fields_rows, ['videos',  video_fields]),
             ('master_genre.csv',    _write_rows,        ['genres']),
@@ -176,105 +176,59 @@ class MasterExporter(EntityCsvExporter):
 
         )
 
+
+class ReleaseExporter(EntityCsvExporter):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__('release', *args, **kwargs)
+
+        main_fields = ['id', 'title', 'released', 'country', 'notes', 'data_quality', 'master_id']
+        label_fields = [ 'name', 'catno']
+        video_fields = [ 'duration', 'title', 'description', 'src']
+        format_fields = [ 'name', 'qty', 'text', 'descriptions']
+        company_fields = [ 'id', 'name', 'entity_type', 'entity_type_name', 'resource_url']
+        identifier_fields = [ 'description', 'type', 'value']
+        track_fields = ['sequence', 'position', 'parent', 'title', 'duration']
+
+        self.artist_fields = [ 'id', 'extra', 'anv', 'join', 'role', 'tracks']
+
+        self.actions = (
+            ('release.csv',             _write_entity,      [main_fields]),
+            ('release_genre.csv',       _write_rows,        ['genres']),
+            ('release_style.csv',       _write_rows,        ['styles']),
+            ('release_label.csv',       _write_fields_rows, ['labels',      label_fields]),
+            ('release_video.csv',       _write_fields_rows, ['videos',      video_fields]),
+            ('release_format.csv',      _write_fields_rows, ['formats',     format_fields]),
+            ('release_company.csv',     _write_fields_rows, ['companies',   company_fields]),
+            ('release_identifier.csv',  _write_fields_rows, ['identifiers', identifier_fields]),
+            ('release_track.csv',       _write_fields_rows, ['tracklist',   track_fields]),
+
+            # Two special operations
+            ('release_artist.csv',          self.write_artists, None),
+            ('release_track_artist.csv',    self.write_track_artists, None),
+        )
+
+    def write_artists(self, writer, release):
+        _write_fields_rows(writer, release, 'artists', self.artist_fields)
+        _write_fields_rows(writer, release, 'extraartists', self.artist_fields)
+
+    def write_track_artists(self, writer, release):
+        writer.writerows(
+            ([release.id, track.sequence] +
+             [getattr(element, i, '') for i in self.artist_fields])
+            for track in getattr(release, 'tracklist', [])
+                for element in (getattr(track, 'artists', []) +
+                                getattr(track, 'extraartists', []))
+        )
+
+
 _exporters = {
     'label': LabelExporter,
     'artist': ArtistExporter,
     'master': MasterExporter,
+    'release': ReleaseExporter,
 }
 
-
-
-def _export_releases(infile, outbase, export_limit=None):
-    release_fields = ['id', 'title', 'released', 'country', 'notes', 'data_quality', 'master_id']
-    release_artist_fields = [ 'id', 'extra', 'anv', 'join', 'role', 'tracks']
-    release_label_fields = [ 'name', 'catno']
-    release_video_fields = [ 'duration', 'title', 'description', 'src']
-    release_company_fields = [ 'id', 'name', 'entity_type', 'entity_type_name', 'resource_url']
-    release_identifier_fields = [ 'description', 'type', 'value']
-    release_format_fields = [ 'name', 'qty', 'text', 'descriptions']
-    release_track_fields = ['sequence', 'position', 'parent', 'title', 'duration']
-
-    with bz2.open(os.path.join(outbase, 'release.csv.bz2'), 'wt') as f1, \
-         bz2.open(os.path.join(outbase, 'release_artist.csv.bz2'), 'wt') as f2, \
-         bz2.open(os.path.join(outbase, 'release_label.csv.bz2'), 'wt') as f3, \
-         bz2.open(os.path.join(outbase, 'release_genre.csv.bz2'), 'wt') as f4, \
-         bz2.open(os.path.join(outbase, 'release_style.csv.bz2'), 'wt') as f5, \
-         bz2.open(os.path.join(outbase, 'release_video.csv.bz2'), 'wt') as f6, \
-         bz2.open(os.path.join(outbase, 'release_company.csv.bz2'), 'wt') as f7, \
-         bz2.open(os.path.join(outbase, 'release_identifier.csv.bz2'), 'wt') as f8, \
-         bz2.open(os.path.join(outbase, 'release_format.csv.bz2'), 'wt') as f9, \
-         bz2.open(os.path.join(outbase, 'release_track.csv.bz2'), 'wt') as f10, \
-         bz2.open(os.path.join(outbase, 'release_track_artist.csv.bz2'), 'wt') as f11:
-
-        releases = csv.writer(f1)
-        releases_artists = csv.writer(f2)
-        releases_labels = csv.writer(f3)
-        releases_genres = csv.writer(f4)
-        releases_styles = csv.writer(f5)
-        releases_videos = csv.writer(f6)
-        releases_companies = csv.writer(f7)
-        releases_identifiers = csv.writer(f8)
-        releases_formats = csv.writer(f9)
-        releases_tracks = csv.writer(f10)
-        releases_tracks_artists = csv.writer(f11)
-
-        parser = DiscogsReleaseParser()
-        for cnt, release in enumerate(parser.parse(infile), start=1):
-
-            _write_entity(releases, release, release_fields)
-
-            _write_fields_rows(releases_artists, release, 'artists', release_artist_fields)
-            _write_fields_rows(releases_artists, release, 'extraartists', release_artist_fields)
-
-            _write_fields_rows(releases_labels, release, 'labels', release_label_fields)
-            _write_fields_rows(releases_videos, release, 'videos', release_video_fields)
-            _write_fields_rows(releases_formats, release, 'formats', release_format_fields)
-
-            _write_fields_rows(releases_companies, release, 'companies', release_company_fields)
-            _write_fields_rows(releases_identifiers, release, 'identifiers', release_identifier_fields)
-
-            _write_rows(releases_genres, release, 'genres')
-            _write_rows(releases_styles, release, 'styles')
-
-            _write_fields_rows(releases_tracks, release, 'tracklist', release_track_fields)
-
-            entity = release
-            writer = releases_tracks_artists
-            writer.writerows(
-                [entity.id, track.sequence]
-                + [getattr(element, i, '') for i in release_artist_fields]
-                for track in getattr(entity, 'tracklist', [])
-                for element in getattr(track, 'artists', []) + getattr(track, 'extraartists', [])
-            )
-
-            if export_limit is not None and cnt > export_limit:
-                break
-
-        print("Wrote %d releases" % cnt)
-
-def export_artists(export_limit=None):
-    _export_artists(
-        gzip.GzipFile(os.path.join(inbase, 'discogs_{}_artists.xml.gz'.format(dt))),
-        outbase,
-        export_limit=export_limit)
-
-def export_labels(export_limit=None):
-    _export_labels(
-        gzip.GzipFile(os.path.join(inbase, 'discogs_{}_labels.xml.gz'.format(dt))),
-        outbase,
-        export_limit=export_limit)
-
-def export_masters(export_limit=None):
-    _export_masters(
-        gzip.GzipFile(os.path.join(inbase, 'discogs_{}_masters.xml.gz'.format(dt))),
-        outbase,
-        export_limit=export_limit)
-
-def export_releases(export_limit=None):
-    _export_releases(
-        gzip.GzipFile(os.path.join(inbase, 'discogs_{}_releases.xml.gz'.format(dt))),
-        outbase,
-        export_limit=export_limit)
 
 def main(args):
 
@@ -289,11 +243,6 @@ def main(args):
     for entity in arguments['--export']:
         exporter = _exporters[entity](inbase, outbase, limit=limit, bz2=bz2_on, debug=debug)
         exporter.export()
-    #export_labels(inbase, outbase, export_limit)
-    #export_artists(inbase, outbase, export_limit)
-    #export_masters(inbase, outbase, export_limit)
-    #export_releases(inbase, outbase, export_limit)
-
 
 if __name__ == '__main__':
     import sys
