@@ -15,6 +15,9 @@ import gzip
 import os
 
 from docopt import docopt
+import requests
+from tqdm import tqdm
+
 
 from parser import *
 
@@ -45,9 +48,12 @@ _parsers = {
 class EntityCsvExporter(object):
     """Read a Discogs dump XML file and exports SQL table records as CSV.
     """
-    def __init__(self, entity, idir, odir, limit=None, bz2=True, dry_run=False, debug=False):
+    def __init__(self, entity, idir, odir, limit=None, bz2=True,
+                 dry_run=False, debug=False, max_hint=None, verbose=False):
         self.entity = entity
         self.parser = _parsers[entity]()
+        self.max_hint = max_hint
+        self.verbose = verbose
 
         lookup = 'discogs_[0-9]*_{}s.xml*'.format(entity)
         self.pattern = os.path.join(idir, lookup)
@@ -106,10 +112,14 @@ class EntityCsvExporter(object):
 
     def export_from_file(self, fp):
         operations = self.build_ops()
-        for cnt, entity in enumerate(filter(self.validate, self.parser.parse(fp)), start=1):
-            self.run_ops(entity, operations)
-            if self.limit is not None and cnt > self.limit:
-                break
+        with tqdm(total=self.max_hint, ncols=80,
+                  desc='Processing {}s'.format(self.entity),
+                  unit='{}s'.format(self.entity)) as pbar:
+            for cnt, entity in enumerate(filter(self.validate, self.parser.parse(fp)), start=1):
+                self.run_ops(entity, operations)
+                pbar.update()
+                if self.limit is not None and cnt >= self.limit:
+                    break
         self.clean_ops(operations)
         return cnt
 
@@ -239,8 +249,22 @@ def main(args):
     bz2_on = arguments['--bz2']
     debug = arguments['--debug']
 
+    rough_counts = {
+        'artists':  5000000,
+        'labels':   1100000,
+        'masters':  1200000,
+        'releases': 8500000,
+    }
+    r = requests.get('https://api.discogs.com/', timeout=5)
+    try:
+        rough_counts.update(r.json().get('statistics'))
+    except:
+        pass
+
     for entity in arguments['--export']:
-        exporter = _exporters[entity](inbase, outbase, limit=limit, bz2=bz2_on, debug=debug)
+        expected_count = rough_counts['{}s'.format(entity)]
+        exporter = _exporters[entity](inbase, outbase, limit=limit, bz2=bz2_on,
+            debug=debug, max_hint=min(expected_count, limit or expected_count))
         exporter.export()
 
 if __name__ == '__main__':
