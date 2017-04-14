@@ -13,7 +13,7 @@ def load_csv(filename, db):
     base, fname = os.path.split(filename)
     table, ext  = fname.split('.', 1)
     if ext.startswith('csv'):
-        q = sql.SQL("COPY {} ({}) FROM STDIN WITH CSV").format(
+        q = sql.SQL("COPY {} ({}) FROM STDIN WITH CSV HEADER").format(
                 sql.Identifier(table),
                 sql.SQL(', ').join(map(sql.Identifier, columns[table])))
 

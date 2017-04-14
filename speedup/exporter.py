@@ -20,6 +20,7 @@ from tqdm import tqdm
 
 
 from parser import *
+from dbconfig import columns
 
 
 def _write_entity(writer, entity, fields):
@@ -63,8 +64,10 @@ class EntityCsvExporter(object):
         self.limit = limit
         self.bz2 = bz2
         self.dry_run = dry_run
+        self.write_csv_headers = True
 
         self.debug = debug
+        self.progress_bar_width = 120
 
     def openfile(self):
         for fpath in glob.glob(self.pattern):
@@ -83,15 +86,24 @@ class EntityCsvExporter(object):
         return True
 
     def build_ops(self):
-        openf = bz2.open if self.bz2 else open
-        outf = '{}.bz2' if self.bz2 else '{}'
+        if self.bz2:
+            openf = bz2.open
+            ftemplate = '{table}.csv.bz2'
+        else:
+            openf = open
+            ftemplate = '{table}.csv'
 
         operations = []
-        for out, fn, args in self.actions:
-            outfp = openf(os.path.join(self.odir, outf.format(out)), 'wt', encoding='utf-8')
+        for table, func, args in self.actions:
+            fname = ftemplate.format(table=table)
+            outfp = openf(os.path.join(self.odir, fname), 'wt', encoding='utf-8')
             writer = csv.writer(outfp)
+
+            if self.write_csv_headers:
+                writer.writerow(columns[table])
+
             operations.append(
-                (writer, fn, args, outfp)
+                (writer, func, args, outfp)
             )
         return operations
 
@@ -112,14 +124,17 @@ class EntityCsvExporter(object):
 
     def export_from_file(self, fp):
         operations = self.build_ops()
-        with tqdm(total=self.max_hint, ncols=80,
-                  desc='Processing {}s'.format(self.entity),
+
+        with tqdm(total=self.max_hint, ncols=self.progress_bar_width,
+                  desc='Processing {:>10}s'.format(self.entity),
                   unit='{}s'.format(self.entity)) as pbar:
+
             for cnt, entity in enumerate(filter(self.validate, self.parser.parse(fp)), start=1):
                 self.run_ops(entity, operations)
                 pbar.update()
                 if self.limit is not None and cnt >= self.limit:
                     break
+
         self.clean_ops(operations)
         return cnt
 
@@ -131,8 +146,8 @@ class LabelExporter(EntityCsvExporter):
 
         main_fields = ['id', 'name', 'contactinfo', 'profile', 'parentLabel', 'data_quality']
         self.actions = (
-            ('label.csv',       _write_entity,  [main_fields]),
-            ('label_url.csv',   _write_rows,    ['urls']),
+            ('label',       _write_entity,  [main_fields]),
+            ('label_url',   _write_rows,    ['urls']),
         )
 
     def validate(self, label):
@@ -148,11 +163,11 @@ class ArtistExporter(EntityCsvExporter):
 
         main_fields = ['id', 'name', 'realname', 'profile', 'data_quality']
         self.actions = (
-            ('artist.csv',                  _write_entity,  [main_fields]),
-            ('artist_alias.csv',            _write_rows,    ['aliases']),
-            ('artist_namevariation.csv',    _write_rows,    ['namevariations']),
-            ('artist_url.csv',              _write_rows,    ['urls']),
-            ('group_member.csv',            self.write_group_members,  None),
+            ('artist',                  _write_entity,  [main_fields]),
+            ('artist_alias',            _write_rows,    ['aliases']),
+            ('artist_namevariation',    _write_rows,    ['namevariations']),
+            ('artist_url',              _write_rows,    ['urls']),
+            ('group_member',            self.write_group_members,  None),
         )
 
     @staticmethod
@@ -177,11 +192,11 @@ class MasterExporter(EntityCsvExporter):
         artist_fields = ['id', 'anv', 'join', 'role']
         video_fields = ['duration', 'title', 'description', 'src']
         self.actions = (
-            ('master.csv',          _write_entity,      [main_fields]),
-            ('master_artist.csv',   _write_fields_rows, ['artists', artist_fields]),
-            ('master_video.csv',    _write_fields_rows, ['videos',  video_fields]),
-            ('master_genre.csv',    _write_rows,        ['genres']),
-            ('master_style.csv',    _write_rows,        ['styles']),
+            ('master',          _write_entity,      [main_fields]),
+            ('master_artist',   _write_fields_rows, ['artists', artist_fields]),
+            ('master_video',    _write_fields_rows, ['videos',  video_fields]),
+            ('master_genre',    _write_rows,        ['genres']),
+            ('master_style',    _write_rows,        ['styles']),
 
         )
 
@@ -202,19 +217,19 @@ class ReleaseExporter(EntityCsvExporter):
         self.artist_fields = [ 'id', 'extra', 'anv', 'join', 'role', 'tracks']
 
         self.actions = (
-            ('release.csv',             _write_entity,      [main_fields]),
-            ('release_genre.csv',       _write_rows,        ['genres']),
-            ('release_style.csv',       _write_rows,        ['styles']),
-            ('release_label.csv',       _write_fields_rows, ['labels',      label_fields]),
-            ('release_video.csv',       _write_fields_rows, ['videos',      video_fields]),
-            ('release_format.csv',      _write_fields_rows, ['formats',     format_fields]),
-            ('release_company.csv',     _write_fields_rows, ['companies',   company_fields]),
-            ('release_identifier.csv',  _write_fields_rows, ['identifiers', identifier_fields]),
-            ('release_track.csv',       _write_fields_rows, ['tracklist',   track_fields]),
+            ('release',             _write_entity,      [main_fields]),
+            ('release_genre',       _write_rows,        ['genres']),
+            ('release_style',       _write_rows,        ['styles']),
+            ('release_label',       _write_fields_rows, ['labels',      label_fields]),
+            ('release_video',       _write_fields_rows, ['videos',      video_fields]),
+            ('release_format',      _write_fields_rows, ['formats',     format_fields]),
+            ('release_company',     _write_fields_rows, ['companies',   company_fields]),
+            ('release_identifier',  _write_fields_rows, ['identifiers', identifier_fields]),
+            ('release_track',       _write_fields_rows, ['tracklist',   track_fields]),
 
             # Two special operations
-            ('release_artist.csv',          self.write_artists, None),
-            ('release_track_artist.csv',    self.write_track_artists, None),
+            ('release_artist',          self.write_artists, None),
+            ('release_track_artist',    self.write_track_artists, None),
         )
 
     def write_artists(self, writer, release):
@@ -249,6 +264,8 @@ def main(args):
     bz2_on = arguments['--bz2']
     debug = arguments['--debug']
 
+    # this is used to get a rough idea of how many items we can expect
+    # in each dump file so that we can show the progress bar
     rough_counts = {
         'artists':  5000000,
         'labels':   1100000,
