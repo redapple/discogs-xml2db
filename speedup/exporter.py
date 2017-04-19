@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Usage: exporter.py [--bz2] [--limit=<lines>] [--debug] [--apicounts] INPUT [OUTPUT] [--export=<entity>]...
+"""Usage: exporter.py [--bz2] [--dry-run] [--limit=<lines>] [--debug] [--apicounts] INPUT [OUTPUT] [--export=<entity>]...
 
 Options:
   --bz2                 Compress output files using bz2 compression library.
@@ -7,6 +7,7 @@ Options:
   --export=<entity>     Limit export to some entities (repeatable)
   --debug               Turn on debugging prints
   --apicounts           Check entities counts with Discogs API
+  --dry-run             Do not write
 
 """
 import bz2
@@ -109,8 +110,6 @@ class EntityCsvExporter(object):
         return operations
 
     def run_ops(self, entity, operations):
-        if self.dry_run:
-            return
         for writer, f, args, _ in operations:
             if args is not None:
                 f(writer, entity, *args)
@@ -118,25 +117,26 @@ class EntityCsvExporter(object):
                 f(writer, entity)
 
     def clean_ops(self, operations):
-        if self.dry_run:
-            return
         for _, _, _, fp in operations:
             fp.close()
 
     def export_from_file(self, fp):
-        operations = self.build_ops()
+        if not self.dry_run:
+            operations = self.build_ops()
 
         with tqdm(total=self.max_hint, ncols=self.progress_bar_width,
                   desc='Processing {:>10}s'.format(self.entity),
                   unit='{}s'.format(self.entity)) as pbar:
 
             for cnt, entity in enumerate(filter(self.validate, self.parser.parse(fp)), start=1):
-                self.run_ops(entity, operations)
+                if not self.dry_run:
+                    self.run_ops(entity, operations)
                 pbar.update()
                 if self.limit is not None and cnt >= self.limit:
                     break
 
-        self.clean_ops(operations)
+        if not self.dry_run:
+            self.clean_ops(operations)
         return cnt
 
 
@@ -264,6 +264,7 @@ def main(args):
     limit = int(arguments['--limit']) if arguments['--limit'] else None
     bz2_on = arguments['--bz2']
     debug = arguments['--debug']
+    dry_run = arguments['--dry-run']
 
     # this is used to get a rough idea of how many items we can expect
     # in each dump file so that we can show the progress bar
@@ -283,7 +284,8 @@ def main(args):
     for entity in arguments['--export']:
         expected_count = rough_counts['{}s'.format(entity)]
         exporter = _exporters[entity](inbase, outbase, limit=limit, bz2=bz2_on,
-            debug=debug, max_hint=min(expected_count, limit or expected_count))
+            debug=debug, max_hint=min(expected_count, limit or expected_count),
+            dry_run=dry_run)
         exporter.export()
 
 if __name__ == '__main__':
