@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-"""Usage: exporter.py [--bz2] [--limit=<lines>] [--debug] INPUT [OUTPUT] [--export=<entity>]...
+"""Usage: exporter.py [--bz2] [--limit=<lines>] [--debug] [--apicounts] INPUT [OUTPUT] [--export=<entity>]...
 
 Options:
   --bz2                 Compress output files using bz2 compression library.
   --limit=<lines>       Limit export to some number of entities
   --export=<entity>     Limit export to some entities (repeatable)
   --debug               Turn on debugging prints
+  --apicounts           Check entities counts with Discogs API
 
 """
 import bz2
@@ -272,11 +273,12 @@ def main(args):
         'masters':  1200000,
         'releases': 8500000,
     }
-    r = requests.get('https://api.discogs.com/', timeout=5)
-    try:
-        rough_counts.update(r.json().get('statistics'))
-    except:
-        pass
+    if arguments['--apicounts']:
+        r = requests.get('https://api.discogs.com/', timeout=5)
+        try:
+            rough_counts.update(r.json().get('statistics'))
+        except:
+            pass
 
     for entity in arguments['--export']:
         expected_count = rough_counts['{}s'.format(entity)]
