@@ -61,14 +61,17 @@ CREATE TABLE master (
 );
 
 CREATE TABLE master_artist (
+    id              SERIAL,
     master_id       integer NOT NULL,
     artist_id       integer NOT NULL,
+    artist_name     text,
     anv             text,
     join_string     text,
     role            text
 );
 
 CREATE TABLE master_video (
+    id              SERIAL,
     master_id       integer NOT NULL,
     duration        integer,
     title           text,
@@ -77,11 +80,13 @@ CREATE TABLE master_video (
 );
 
 CREATE TABLE master_genre (
+    id              SERIAL,
     master_id       integer NOT NULL,
     genre           text
 );
 
 CREATE TABLE master_style (
+    id              SERIAL,
     master_id       integer NOT NULL,
     style           text
 );
@@ -94,12 +99,15 @@ CREATE TABLE release (
     country         text,
     notes           text,
     data_quality    text,
+    main            integer,
     master_id       integer
 );
 
 CREATE TABLE release_artist (
+    id              SERIAL,
     release_id      integer NOT NULL,
     artist_id       integer NOT NULL,
+    artist_name     text,
     extra           integer NOT NULL,
     anv             text,
     join_string     text,
@@ -108,6 +116,7 @@ CREATE TABLE release_artist (
 );
 
 CREATE TABLE release_label (
+    id              SERIAL,
     release_id      integer NOT NULL,
     label_id        integer,
     label_name      text NOT NULL,
@@ -115,6 +124,7 @@ CREATE TABLE release_label (
 );
 
 CREATE TABLE release_genre (
+    id              SERIAL,
     release_id      integer NOT NULL,
     genre           text
 );
@@ -125,6 +135,7 @@ CREATE TABLE release_style (
 );
 
 CREATE TABLE release_format (
+    id              SERIAL,
     release_id      integer NOT NULL,
     name            text,
     qty             NUMERIC, -- There's 1 example e.g. 8262262,File,1000000000000000000000000000000000000000000000000000000000000001,32 kbps,MP3; Album; Mono
@@ -133,6 +144,7 @@ CREATE TABLE release_format (
 );
 
 CREATE TABLE release_track (
+    id              SERIAL,
     release_id      integer NOT NULL,
     sequence        integer NOT NULL,
     position        text,
@@ -142,9 +154,12 @@ CREATE TABLE release_track (
 );
 
 CREATE TABLE release_track_artist (
+    id              SERIAL,
+    track_id        integer,
     release_id      integer NOT NULL,
     track_sequence  integer NOT NULL,
     artist_id       integer NOT NULL,
+    artist_name     text,
     extra           boolean NOT NULL,
     anv             text,
     join_string     text,
@@ -153,6 +168,7 @@ CREATE TABLE release_track_artist (
 );
 
 CREATE TABLE release_identifier (
+    id              SERIAL,
     release_id      integer NOT NULL,
     description     text,
     type            text,
@@ -160,6 +176,7 @@ CREATE TABLE release_identifier (
 );
 
 CREATE TABLE release_video (
+    id              SERIAL,
     release_id      integer NOT NULL,
     duration        integer,
     title           text,
@@ -168,9 +185,10 @@ CREATE TABLE release_video (
 );
 
 CREATE TABLE release_company (
-    release_id      integer NOT NULL,
-    company_id      integer NOT NULL,
-    company_name    text NOT NULL,
+    id                  SERIAL,
+    release_id          integer NOT NULL,
+    company_id          integer NOT NULL,
+    company_name        text NOT NULL,
     entity_type         text,
     entity_type_name    text,
     uri                 text

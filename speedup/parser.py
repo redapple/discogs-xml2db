@@ -104,7 +104,7 @@ class DiscogsLabelParser(DiscogsDumpEntityParser):
                      'name',
                      'profile',
                      'parentLabel'):
-                setattr(label, t, e.text)
+                setattr(label, t, e.text.strip())
 
             elif t in ('sublabels',
                      'urls'):
@@ -133,7 +133,7 @@ class DiscogsMasterParser(DiscogsDumpEntityParser):
                 if t in ('id',):
                     setattr(artist, t, int(e.text))
 
-                elif t in ('name','anv', 'join', 'role'):
+                elif t in ('name', 'anv', 'join', 'role'):
                     setattr(artist, t, e.text)
             yield artist
 
@@ -143,7 +143,7 @@ class DiscogsMasterParser(DiscogsDumpEntityParser):
 
             for e in child.iterchildren():
                 t = e.tag
-                if t in ('title','description'):
+                if t in ('title', 'description'):
                     setattr(entity, t, e.text)
 
             for k, v in child.attrib.items():
@@ -197,7 +197,7 @@ class DiscogsReleaseParser(DiscogsDumpEntityParser):
                 if t in ('id',):
                     setattr(artist, t, int(e.text))
 
-                elif t in ('name','anv', 'join', 'role'):
+                elif t in ('name', 'anv', 'join', 'role'):
                     setattr(artist, t, e.text)
             yield artist
 
@@ -214,7 +214,7 @@ class DiscogsReleaseParser(DiscogsDumpEntityParser):
             entity = Video()
             for e in child.iterchildren():
                 t = e.tag
-                if t in ('title','description'):
+                if t in ('title', 'description'):
                     setattr(entity, t, e.text)
             for k, v in child.attrib.items():
                 if k in ('duration',):
@@ -279,7 +279,7 @@ class DiscogsReleaseParser(DiscogsDumpEntityParser):
                 if t in ('id', 'entity_type'):
                     setattr(entity, t, int(e.text))
 
-                elif t in ('name','entity_type_name', 'catno', 'resource_url'):
+                elif t in ('name', 'entity_type_name', 'catno', 'resource_url'):
                     setattr(entity, t, e.text)
             yield entity
 
