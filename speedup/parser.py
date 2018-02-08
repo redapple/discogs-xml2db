@@ -126,8 +126,9 @@ class DiscogsMasterParser(DiscogsDumpEntityParser):
             return int(i)
 
     def element_artists(self, element):
-        for child in element.iterchildren():
+        for i, child in enumerate(element.iterchildren(), start=1):
             artist = MasterArtist()
+            artist.position = i
             for e in child.iterchildren():
                 t = e.tag
                 if t in ('id',):
@@ -189,9 +190,10 @@ class DiscogsReleaseParser(DiscogsDumpEntityParser):
             return int(i)
 
     def element_artists(self, element, extra=False):
-        for child in element.iterchildren():
+        for i, child in enumerate(element.iterchildren(), start=1):
             artist = ReleaseArtist()
             artist.extra = int(extra)
+            artist.position = i
             for e in child.iterchildren():
                 t = e.tag
                 if t in ('id',):

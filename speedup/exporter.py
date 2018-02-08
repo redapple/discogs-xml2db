@@ -190,7 +190,7 @@ class MasterExporter(EntityCsvExporter):
         super().__init__('master', *args, **kwargs)
 
         main_fields = ['id', 'title', 'year', 'main_release', 'data_quality']
-        artist_fields = ['id', 'name', 'anv', 'join', 'role']
+        artist_fields = ['id', 'name', 'anv', 'position', 'join', 'role']
         video_fields = ['duration', 'title', 'description', 'src']
         self.actions = (
             ('master',          _write_entity,      [main_fields]),
@@ -215,7 +215,7 @@ class ReleaseExporter(EntityCsvExporter):
         identifier_fields = [ 'description', 'type', 'value']
         track_fields = ['sequence', 'position', 'parent', 'title', 'duration']
 
-        self.artist_fields = [ 'id', 'name', 'extra', 'anv', 'join', 'role', 'tracks']
+        self.artist_fields = [ 'id', 'name', 'extra', 'anv', 'position', 'join', 'role', 'tracks']
 
         self.actions = (
             ('release',             _write_entity,      [main_fields]),

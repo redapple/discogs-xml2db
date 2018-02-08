@@ -66,6 +66,7 @@ CREATE TABLE master_artist (
     artist_id       integer NOT NULL,
     artist_name     text,
     anv             text,
+    position        integer,
     join_string     text,
     role            text
 );
@@ -110,6 +111,7 @@ CREATE TABLE release_artist (
     artist_name     text,
     extra           integer NOT NULL,
     anv             text,
+    position        integer,
     join_string     text,
     role            text,
     tracks          text
@@ -162,6 +164,7 @@ CREATE TABLE release_track_artist (
     artist_name     text,
     extra           boolean NOT NULL,
     anv             text,
+    position        integer,
     join_string     text,
     role            text,
     tracks          text
