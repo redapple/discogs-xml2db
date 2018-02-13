@@ -12,7 +12,8 @@ parser.add_option("-c", "--config", dest="cfgfile", default=None, help="configur
 options, args = parser.parse_args()
 
 if options.cfgfile is None:
-    config = Config(os.path.dirname(__file__) + '/discogs.conf')
+    root = os.path.realpath(os.path.dirname(__file__))
+    config = Config(os.path.join(root, 'discogs.conf'))
 else:
     config = Config(options.cfgfile)
 

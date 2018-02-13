@@ -26,8 +26,8 @@ def load_csv(filename, db):
     cursor.copy_expert(q, fp)
     db.commit()
 
-
-config = Config(os.path.dirname(__file__) + '/discogs.conf')
+root = os.path.realpath(os.path.dirname(__file__))
+config = Config(os.path.join(root, 'discogs.conf'))
 db = connect_db(config)
 
 for filename in sys.argv[1:]:
