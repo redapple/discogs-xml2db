@@ -6,6 +6,11 @@ import lxml.etree as etree
 from entities import *
 
 
+def gettext_stripped(e):
+    if e.text:
+        return e.text.strip()
+
+
 def grouper(iterable, n, fillvalue=None):
     "Collect data into fixed-length chunks or blocks"
     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
@@ -40,13 +45,15 @@ class DiscogsDumpEntityParser(object):
 
     def children_text(self, element):
         for child in element.iterchildren():
-            yield child.text
+            ct = gettext_stripped(child)
+            if ct:
+                yield ct
 
     def element_attributes(self, element, entity_class):
         for child in element.iterchildren():
             entity = entity_class()
             for k, v in child.attrib.items():
-                setattr(entity, k, v)
+                setattr(entity, k, v.strip())
             yield entity
 
 
@@ -57,7 +64,7 @@ class DiscogsArtistParser(DiscogsDumpEntityParser):
     #<members><id>26</id><name>Alexi Delano</name><id>27</id><name>Cari Lekebusch</name></members>
     def element_members(self, element):
         for id, name in grouper([child.text for child in element.iterchildren()], 2):
-            yield int(id), name
+            yield int(id), name.strip()
 
     def build_entity(self, entity_id, element):
         artist = Artist()
@@ -68,7 +75,7 @@ class DiscogsArtistParser(DiscogsDumpEntityParser):
                      'name',
                      'realname',
                      'profile'):
-                setattr(artist, t, e.text)
+                setattr(artist, t, gettext_stripped(e))
 
             # <aliases><name>some name</name>...
             # <namevariations><name>some name</name>...
@@ -104,10 +111,10 @@ class DiscogsLabelParser(DiscogsDumpEntityParser):
                      'name',
                      'profile',
                      'parentLabel'):
-                setattr(label, t, e.text.strip())
+                setattr(label, t, gettext_stripped(e))
 
             elif t in ('sublabels',
-                     'urls'):
+                       'urls'):
                 setattr(label, t, list(self.children_text(e)))
 
             elif t in ('images'):
@@ -134,8 +141,11 @@ class DiscogsMasterParser(DiscogsDumpEntityParser):
                 if t in ('id',):
                     setattr(artist, t, int(e.text))
 
-                elif t in ('name', 'anv', 'join', 'role'):
-                    setattr(artist, t, e.text)
+                elif t in ('name',
+                           'anv',
+                           'join',
+                           'role'):
+                    setattr(artist, t, gettext_stripped(e))
             yield artist
 
     def element_videos(self, element):
@@ -145,13 +155,13 @@ class DiscogsMasterParser(DiscogsDumpEntityParser):
             for e in child.iterchildren():
                 t = e.tag
                 if t in ('title', 'description'):
-                    setattr(entity, t, e.text)
+                    setattr(entity, t, gettext_stripped(e))
 
             for k, v in child.attrib.items():
                 if k in ('duration',):
                     setattr(entity, k, int(v))
                 elif k in ('src',):
-                    setattr(entity, k, v)
+                    setattr(entity, k, v.strip())
 
             yield entity
 
@@ -164,7 +174,7 @@ class DiscogsMasterParser(DiscogsDumpEntityParser):
                 setattr(master, t, int(e.text))
 
             elif t in ('title', 'data_quality', 'notes'):
-                setattr(master, t, e.text)
+                setattr(master, t, gettext_stripped(e))
 
             elif t in ('genres', 'styles',):
                 setattr(master, t, list(self.children_text(e)))
@@ -199,8 +209,11 @@ class DiscogsReleaseParser(DiscogsDumpEntityParser):
                 if t in ('id',):
                     setattr(artist, t, int(e.text))
 
-                elif t in ('name', 'anv', 'join', 'role'):
-                    setattr(artist, t, e.text)
+                elif t in ('name',
+                           'anv',
+                           'join',
+                           'role'):
+                    setattr(artist, t, gettext_stripped(e))
             yield artist
 
     def element_labels(self, element):
@@ -208,7 +221,7 @@ class DiscogsReleaseParser(DiscogsDumpEntityParser):
             entity = ReleaseLabel()
             for k, v in child.attrib.items():
                 if k in ('catno', 'name'):
-                    setattr(entity, k, v)
+                    setattr(entity, k, v.strip())
             yield entity
 
     def element_videos(self, element):
@@ -217,12 +230,12 @@ class DiscogsReleaseParser(DiscogsDumpEntityParser):
             for e in child.iterchildren():
                 t = e.tag
                 if t in ('title', 'description'):
-                    setattr(entity, t, e.text)
+                    setattr(entity, t, gettext_stripped(e))
             for k, v in child.attrib.items():
                 if k in ('duration',):
                     setattr(entity, k, int(v))
                 elif k in ('src',):
-                    setattr(entity, k, v)
+                    setattr(entity, k, v.strip())
             yield entity
 
     def element_formats(self, element):
@@ -237,7 +250,7 @@ class DiscogsReleaseParser(DiscogsDumpEntityParser):
                 if k in ('qty',):
                     setattr(entity, k, int(v))
                 elif k in ('name', 'text'):
-                    setattr(entity, k, v)
+                    setattr(entity, k, v.strip())
             yield entity
 
     def element_tracklist(self, element, parent=None):
@@ -251,7 +264,7 @@ class DiscogsReleaseParser(DiscogsDumpEntityParser):
             for e in track.iterchildren():
                 t = e.tag
                 if t in ('position', 'title', 'duration'):
-                    setattr(entity, t, e.text)
+                    setattr(entity, t, gettext_stripped(e))
                 elif t in ('artists', 'extraartists'):
                     setattr(entity, t,
                             list(self.element_artists(e,
@@ -270,7 +283,7 @@ class DiscogsReleaseParser(DiscogsDumpEntityParser):
             entity = ReleaseIdentifier()
             for k, v in child.attrib.items():
                 if k in ('description', 'type', 'value'):
-                    setattr(entity, k, v)
+                    setattr(entity, k, v.strip())
             yield entity
 
     def element_companies(self, element):
@@ -282,7 +295,7 @@ class DiscogsReleaseParser(DiscogsDumpEntityParser):
                     setattr(entity, t, int(e.text))
 
                 elif t in ('name', 'entity_type_name', 'catno', 'resource_url'):
-                    setattr(entity, t, e.text)
+                    setattr(entity, t, gettext_stripped(e))
             yield entity
 
     def build_entity(self, entity_id, element):
@@ -294,7 +307,7 @@ class DiscogsReleaseParser(DiscogsDumpEntityParser):
                 setattr(release, t, int(e.text))
 
             elif t in ('title', 'country', 'released', 'notes', 'data_quality'):
-                setattr(release, t, e.text)
+                setattr(release, t, e.text.strip())
 
             elif t in ('genres', 'styles',):
                 setattr(release, t, list(self.children_text(e)))
