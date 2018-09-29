@@ -194,6 +194,9 @@ class DiscogsReleaseParser(DiscogsDumpEntityParser):
 
     entity_tag = "release"
 
+    def __init__(self):
+        self.track_tmp_id = 0
+
     def entity_id(self, element):
         i = element.get('id')
         if i is not None:
@@ -255,8 +258,10 @@ class DiscogsReleaseParser(DiscogsDumpEntityParser):
 
     def element_tracklist(self, element, parent=None):
         for track in element.iterchildren():
+            self.track_tmp_id += 1
             self.track_sequence += 1
             entity = ReleaseTrack()
+            entity.tmp_id = self.track_tmp_id
             subtracks = []
             setattr(entity, 'sequence', self.track_sequence)
             if parent is not None:

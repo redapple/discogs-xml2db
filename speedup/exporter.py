@@ -213,7 +213,7 @@ class ReleaseExporter(EntityCsvExporter):
         format_fields = [ 'name', 'qty', 'text', 'descriptions']
         company_fields = [ 'id', 'name', 'entity_type', 'entity_type_name', 'resource_url']
         identifier_fields = [ 'description', 'type', 'value']
-        track_fields = ['sequence', 'position', 'parent', 'title', 'duration']
+        track_fields = ['sequence', 'position', 'parent', 'title', 'duration', 'tmp_id']
 
         self.artist_fields = [ 'id', 'name', 'extra', 'anv', 'position', 'join', 'role', 'tracks']
 
@@ -239,7 +239,7 @@ class ReleaseExporter(EntityCsvExporter):
 
     def write_track_artists(self, writer, release):
         writer.writerows(
-            ([release.id, track.sequence] +
+            ([release.id, track.sequence, track.tmp_id] +
              [getattr(element, i, '') for i in self.artist_fields])
             for track in getattr(release, 'tracklist', [])
                 for element in (getattr(track, 'artists', []) +

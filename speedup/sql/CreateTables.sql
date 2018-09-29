@@ -152,12 +152,14 @@ CREATE TABLE release_track (
     position        text,
     parent          integer,
     title           text,
-    duration        text
+    duration        text,
+    tmp_id          integer
 );
 
 CREATE TABLE release_track_artist (
     id              SERIAL,
     track_id        integer,
+    track_tmp_id    integer,
     release_id      integer NOT NULL,
     track_sequence  integer NOT NULL,
     artist_id       integer NOT NULL,

@@ -80,8 +80,8 @@ columns = {table:columns.split() for table, columns in {
     'release_company':      'release_id company_id company_name entity_type entity_type_name uri',
     'release_video':        'release_id duration title description uri',
     'release_identifier':   'release_id description type value',
-    'release_track':        'release_id sequence position parent title duration',
-    'release_track_artist': 'release_id track_sequence artist_id artist_name extra anv position join_string role tracks',
+    'release_track':        'release_id sequence position parent title duration tmp_id',
+    'release_track_artist': 'release_id track_sequence track_tmp_id artist_id artist_name extra anv position join_string role tracks',
 }.items()}
 
 
